@@ -8,20 +8,26 @@ using System.Drawing.Imaging;
 using System.Drawing.Drawing2D;
 using AForge.Imaging.Filters;
 using AForge.Imaging;
+using System.Runtime.InteropServices;
+using System.IO;
+
 namespace Retina_Scanner
 {
     class Functions
     {
         public Bitmap CropImage(Bitmap source, Rectangle section)
         {
+
             Bitmap bmp = new Bitmap(section.Width, section.Height);
             Graphics g = Graphics.FromImage(bmp);
             g.DrawImage(source, 0, 0, section, GraphicsUnit.Pixel);
             return bmp;
         }
 
-        public Rectangle GetCenter(Bitmap bmp)
+        public Rectangle GetCenter(Bitmap bmp, Globals g)
         {
+
+
             BlobCounter bl = new BlobCounter(bmp);
             int i = bl.ObjectsCount;
             ExtractBiggestBlob fil2 = new ExtractBiggestBlob();
@@ -30,16 +36,24 @@ namespace Retina_Scanner
             int x = 0;
             int y = 0;
             int h = 0;
+            int width=0;
+            int height=0;
             if (i > 0)
             {
-                fil2.Apply(bmp);
+                h = fil2.Apply(bmp).Height;
                 x = fil2.BlobPosition.X;
                 y = fil2.BlobPosition.Y;
-                h = fil2.Apply(bmp).Height;
+
+                width = h * 2;
+                height = h * 2;
+                g.eyefound = true;
+            }
+            else
+            {
+                g.eyefound = false;
             }
 
-            Rectangle section = new Rectangle(new Point(x - h, y - h), new Size(3 * h, 3 * h));
-
+            Rectangle section = new Rectangle(new Point((x + 50) - h, (y +50) - h), new Size(width, height));
             return section;
         }
 
@@ -88,73 +102,64 @@ namespace Retina_Scanner
 
             return destImage;
         }
-
-
-        public int[] ImageToData(Bitmap image)
+        public List<float> GetHash(Bitmap img)
         {
-            Color c;
-            int rgb;
-            List<int> output = new List<int>();
+            List<float> lResult = new List<float>();
 
-            for (int x = 0; x < image.Height; x += 2)
+            img = (Bitmap)img.Clone();
+            for (var y = 0; y < img.Height; y++)
             {
-                for (int y = 0; y < image.Width; y += 2)
+                for (var x = 0; x < img.Width; x++)
                 {
-                    try
-                    {
-                        Color firstPixel = image.GetPixel(x, y);
-                        Color secondPixel = image.GetPixel(x + 1, y);
-                        Color thirdPixel = image.GetPixel(x, y + 1);
-                        Color fourthPixel = image.GetPixel(x + 1, y + 1);
+                    float hue = img.GetPixel(x, y).GetHue();
 
-                        rgb = (firstPixel.R + firstPixel.G + firstPixel.B + secondPixel.R + secondPixel.G + secondPixel.B + thirdPixel.R + thirdPixel.G + thirdPixel.B + fourthPixel.R + fourthPixel.G + fourthPixel.B) / 4;
-                        output.Add(rgb);
-                    }
-                    catch
-                    {
-
-                    }
-                    
+                    lResult.Add(hue);
                 }
+
             }
 
-            return output.ToArray();
+            return lResult;
         }
 
-        public double Confidence(int[] original, int[] match)
+        public double Confidence(float[] original, float[] match)
         {
-            int confidence = 0;
+            //determine the number of equal pixel (x of 256)
+            int equalElements = original.Zip(match, (i, j) => isInRange(j, i-25, i+25, true)).Count(eq => eq);
 
-            for (int i = 0; i < match.Length; i++)
-            {
-                try
-                {
-                    if (isInRange(original[i], match[i]))
-                    {
-                        confidence++;
-                    }
-                }
-                catch
-                {
-                    break;
-                }
-            }
-
-            double result = (float) confidence / match.Length;
-            return Math.Round(result * 100);
+            double result = (float)equalElements / 4096;
+            result = Math.Round(result * 100);
+            return result;
 
         }
 
-        bool isInRange(int number, int secondNum)
-        {
-            if (Enumerable.Range(number-3, number + 3).Contains(secondNum))
-            {
-                return true;
-            } else
-            {
-                return false;
-            }
 
+        //THIS IS TO INACCURATE!
+
+        //bool isInRange(float number, float secondNum)
+        //{
+        //    int num1 = Convert.ToInt32(number * 10);
+        //    int num2 = Convert.ToInt32(secondNum * 10);
+
+        //    if (Enumerable.Range(num1, num1).Contains(num2))
+        //    {
+        //        return true;
+        //    }
+        //    else
+        //    {
+        //        return false;
+        //    }
+        //}
+
+        public bool isInRange(float num, float lower, float upper, bool inclusive = false)
+        {
+            return inclusive
+                ? lower <= num && num <= upper
+                : lower < num && num < upper;
+        }
+
+        public string[] subdirectories()
+        {
+            return Directory.GetDirectories("Data");
         }
     }
 }

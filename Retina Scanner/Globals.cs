@@ -8,8 +8,16 @@ namespace Retina_Scanner
 {
     class Globals
     {
+        public bool eyefound;
+        public bool eyedrawn;
+
+        public string selectedProfile;
+
         public Bitmap currImg;
-        public int[] currImgData;
-        public List<int> matchImgData = new List<int>();
+        public Bitmap currImgCropped;
+        public double currConfidence;
+        public int currConfidenceAbove75;
+        public List<string> dataFileNames = new List<string>();
+        public List<float[]> dataFiles = new List<float[]>();
     }
 }
